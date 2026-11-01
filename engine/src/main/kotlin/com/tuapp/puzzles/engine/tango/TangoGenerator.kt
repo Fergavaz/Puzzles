@@ -44,13 +44,20 @@ class TangoGenerator(private val size: Int = 6) {
         var remaining = items.size
         val target = TARGET_CLUES[d - 1]
 
+        val solList = solution.toList()
         for (item in items) {
             if (remaining <= target) break
             setKeep(item, n * n, keepGiven, keepEdge, false)
-            if (TangoSolver.countSolutions(build(), 2) == 1) remaining--
-            else setKeep(item, n * n, keepGiven, keepEdge, true)
+            val p = build()
+            if (TangoSolver.countSolutions(p, 2) == 1 &&
+                (d > 3 || TangoLogicSolver.solvableWithoutGuessing(p, solList))
+            ) {
+                remaining--
+            } else {
+                setKeep(item, n * n, keepGiven, keepEdge, true)
+            }
         }
-        return TangoLevel(seed, d, build(), solution.toList())
+        return TangoLevel(seed, d, build(), solList)
     }
 
     private fun setKeep(item: Int, cells: Int, g: BooleanArray, e: BooleanArray, value: Boolean) {

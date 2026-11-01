@@ -64,4 +64,21 @@
     <string name="unit_region">región %1$d</string>
     <string name="unit_row">fila %1$d</string>
     <string name="unit_col">columna %1$d</string>
+
+    <!-- Tango Hint System -->
+    <string name="tango_hint_apply">Aplicar</string>
+    <string name="tango_hint_dismiss">Descartar</string>
+    <string name="tango_hint_wrong_cell">Hay celdas colocadas que no coinciden con la solución.</string>
+    <string name="tango_hint_sign_equal">Esta celda está unida con = a un %1$s, así que también debe ser un %1$s.</string>
+    <string name="tango_hint_sign_diff">Esta celda está unida con × a un %1$s, así que debe ser una %2$s.</string>
+    <string name="tango_hint_pair">Ya hay dos %1$s seguidos: la celda contigua tiene que ser %2$s (no puede haber tres seguidos).</string>
+    <string name="tango_hint_sandwich">Entre dos %1$s tiene que haber una %2$s para evitar tres iguales seguidos.</string>
+    <string name="tango_hint_count">Esta %1$s ya tiene tres %2$s, así que las celdas restantes deben ser %3$s.</string>
+    <string name="tango_hint_line_check">En esta %1$s, todas las formas posibles de completarla colocan un %2$s aquí.</string>
+    <string name="tango_hint_hypothetical">Si colocaras un %1$s aquí, esta %2$s quedaría imposible, así que va un %3$s.</string>
+    <string name="tango_hint_fallback">El símbolo correcto para esta celda es %1$s.</string>
+    <string name="symbol_sun">sol</string>
+    <string name="symbol_suns">soles</string>
+    <string name="symbol_moon">luna</string>
+    <string name="symbol_moons">lunas</string>
 </resources>

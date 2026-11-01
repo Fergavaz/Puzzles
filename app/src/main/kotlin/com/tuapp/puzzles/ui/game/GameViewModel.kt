@@ -19,6 +19,7 @@ import com.tuapp.puzzles.engine.session.SudokuSession
 import com.tuapp.puzzles.engine.session.TangoSession
 import com.tuapp.puzzles.engine.session.ZipSession
 import com.tuapp.puzzles.engine.sudoku.SudokuLevel
+import com.tuapp.puzzles.engine.tango.TangoHint
 import com.tuapp.puzzles.engine.tango.TangoLevel
 import com.tuapp.puzzles.engine.zip.ZipLevel
 import com.tuapp.puzzles.ui.nav.Routes
@@ -71,6 +72,9 @@ class GameViewModel @Inject constructor(
     private val _queensHint = MutableStateFlow<QueensHint?>(null)
     val queensHint: StateFlow<QueensHint?> = _queensHint.asStateFlow()
 
+    private val _tangoHint = MutableStateFlow<TangoHint?>(null)
+    val tangoHint: StateFlow<TangoHint?> = _tangoHint.asStateFlow()
+
     private var paused = false
     private var level: PuzzleLevel? = null
     private var ref: LevelRef? = null
@@ -108,6 +112,7 @@ class GameViewModel @Inject constructor(
         _elapsedMs.value = 0
         _solved.value = false
         _queensHint.value = null
+        _tangoHint.value = null
         _ui.value = GameUi.Ready(t, createSession(l))
     }
 
@@ -127,6 +132,7 @@ class GameViewModel @Inject constructor(
         val session = (_ui.value as? GameUi.Ready)?.session ?: return
         if (_solved.value) return
         _queensHint.value = null // Cualquier interacción en el tablero descarta la pista pendiente
+        _tangoHint.value = null
         block()
         _revision.update { it + 1 }
         if (isSolved(session)) onSolved()
@@ -158,6 +164,19 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    fun dismissTangoHint() {
+        _tangoHint.value = null
+    }
+
+    fun applyTangoHint() {
+        val h = _tangoHint.value ?: return
+        val s = (_ui.value as? GameUi.Ready)?.session as? TangoSession ?: return
+        _tangoHint.value = null
+        perform {
+            s.applyHint(h)
+        }
+    }
+
     fun hint() {
         val s = (_ui.value as? GameUi.Ready)?.session ?: return
         if (s is QueensSession) {
@@ -172,9 +191,20 @@ class GameViewModel @Inject constructor(
             }
             return
         }
+        if (s is TangoSession) {
+            val pending = _tangoHint.value
+            if (pending != null) {
+                applyTangoHint()
+            } else {
+                viewModelScope.launch(Dispatchers.Default) {
+                    val next = s.currentHint()
+                    _tangoHint.value = next
+                }
+            }
+            return
+        }
         withSession { session ->
             val cell = when (session) {
-                is TangoSession -> session.hint()
                 is SudokuSession -> session.hint()?.first
                 is ZipSession -> session.hint()
                 is PatchesSession -> session.hint()

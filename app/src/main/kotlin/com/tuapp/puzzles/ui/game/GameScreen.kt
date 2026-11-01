@@ -64,6 +64,7 @@ fun GameScreen(
     val solved by vm.solved.collectAsStateWithLifecycle()
     val hintHighlight by vm.hintHighlight.collectAsStateWithLifecycle()
     val queensHint by vm.queensHint.collectAsStateWithLifecycle()
+    val tangoHint by vm.tangoHint.collectAsStateWithLifecycle()
     var showHelp by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -94,7 +95,7 @@ fun GameScreen(
                         Icon(
                             Icons.Filled.Lightbulb,
                             contentDescription = "Pista",
-                            tint = if (queensHint != null) MaterialTheme.colorScheme.primary else androidx.compose.material3.LocalContentColor.current,
+                            tint = if (queensHint != null || tangoHint != null) MaterialTheme.colorScheme.primary else androidx.compose.material3.LocalContentColor.current,
                         )
                     }
                     IconButton(onClick = vm::restart) { Icon(Icons.Filled.Refresh, contentDescription = "Reiniciar") }
@@ -107,7 +108,16 @@ fun GameScreen(
                 GameUi.Loading -> CircularProgressIndicator()
                 is GameUi.Failed -> Text(u.message, color = MaterialTheme.colorScheme.error)
                 is GameUi.Ready -> when (val s = u.session) {
-                    is TangoSession -> TangoBoard(s, revision, vm::perform, boardModifier, hintHighlight)
+                    is TangoSession -> TangoBoard(
+                        session = s,
+                        revision = revision,
+                        act = vm::perform,
+                        modifier = boardModifier,
+                        highlight = hintHighlight,
+                        hint = tangoHint,
+                        onApplyHint = vm::applyTangoHint,
+                        onDismissHint = vm::dismissTangoHint,
+                    )
                     is QueensSession -> QueensBoard(
                         session = s,
                         revision = revision,
