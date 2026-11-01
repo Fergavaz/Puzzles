@@ -51,7 +51,51 @@ class QueensSession(val level: QueensLevel) : Snapshotted<List<Int>>(List(level.
 
     val isSolved: Boolean get() = QueensRules.isSolved(level.puzzle, queens)
 
-    /** Coloca la reina correcta de la primera fila que no la tiene (quita otras reinas de esa fila). */
+    /** Devuelve la pista lógica actual (o error) según QueensHintEngine. */
+    fun currentHint(): QueensHint? = QueensHintEngine.nextHint(level, state)
+
+    /** Aplica la deducción de la pista en un único paso de historial (deshacer). */
+    fun applyHint(hint: QueensHint, autoMark: Boolean = true) {
+        val nextList = state.toMutableList()
+        when (hint) {
+            is QueensHint.Wrong -> {
+                for (c in hint.cells) {
+                    nextList[c] = EMPTY
+                }
+            }
+            is QueensHint.PlaceQueen -> {
+                val cell = hint.cell
+                nextList[cell] = QUEEN
+                if (autoMark) {
+                    val r = cell / n
+                    val c = cell % n
+                    val reg = level.puzzle.regions[cell]
+                    for (i in nextList.indices) {
+                        if (i == cell || nextList[i] != EMPTY) continue
+                        val ir = i / n
+                        val ic = i % n
+                        val isRow = ir == r
+                        val isCol = ic == c
+                        val isAdj = kotlin.math.abs(ir - r) <= 1 && kotlin.math.abs(ic - c) <= 1
+                        val isSameReg = level.puzzle.regions[i] == reg
+                        if (isRow || isCol || isAdj || isSameReg) {
+                            nextList[i] = MARK
+                        }
+                    }
+                }
+            }
+            is QueensHint.Eliminate -> {
+                for (c in hint.cells) {
+                    if (nextList[c] == EMPTY) {
+                        nextList[c] = MARK
+                    }
+                }
+            }
+        }
+        change(nextList)
+    }
+
+    /** Atajo de depuración: coloca la reina correcta de la primera fila que no la tiene. */
     fun hint(): Int? {
         for (r in 0 until n) {
             val target = r * n + level.solution[r]

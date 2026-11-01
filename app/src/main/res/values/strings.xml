@@ -47,4 +47,21 @@
     <string name="change_cell">Cambiar casilla</string>
     <string name="change_symbol">Cambiar símbolo</string>
     <string name="select_cell">Seleccionar celda</string>
+
+    <!-- Queens Hint System -->
+    <string name="queens_hint_apply">Aplicar</string>
+    <string name="queens_hint_dismiss">Descartar</string>
+    <string name="queens_hint_wrong_queen">Hay coronas colocadas en posiciones incorrectas.</string>
+    <string name="queens_hint_wrong_mark">Hay casillas marcadas con X que deben llevar una corona.</string>
+    <string name="queens_hint_giveaway_region">En la región %1$d solo queda una casilla libre para una corona.</string>
+    <string name="queens_hint_giveaway_row">En la fila %1$d solo queda una casilla libre para una corona.</string>
+    <string name="queens_hint_giveaway_col">En la columna %1$d solo queda una casilla libre para una corona.</string>
+    <string name="queens_hint_knockout">Colocar una corona en las casillas marcadas dejaría sin opciones a la %1$s.</string>
+    <string name="queens_hint_confined">Todas las casillas posibles de la %1$s están en la %2$s, por lo que ninguna otra de esa %2$s puede llevar corona.</string>
+    <string name="queens_hint_n_in_n">Las unidades indicadas se limitan mutuamente; las casillas marcadas no pueden llevar corona.</string>
+    <string name="queens_hint_hypothetical">Colocar una corona aquí obligaría a pasos que dejarían sin opciones a la %1$s.</string>
+    <string name="queens_hint_fallback">Coloca una corona en la casilla destacada de la región %1$d.</string>
+    <string name="unit_region">región %1$d</string>
+    <string name="unit_row">fila %1$d</string>
+    <string name="unit_col">columna %1$d</string>
 </resources>

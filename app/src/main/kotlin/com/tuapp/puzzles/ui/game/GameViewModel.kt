@@ -10,6 +10,7 @@ import com.tuapp.puzzles.data.LevelGenerator
 import com.tuapp.puzzles.data.LevelRef
 import com.tuapp.puzzles.data.ProgressRepository
 import com.tuapp.puzzles.engine.patches.PatchesLevel
+import com.tuapp.puzzles.engine.queens.QueensHint
 import com.tuapp.puzzles.engine.queens.QueensLevel
 import com.tuapp.puzzles.engine.session.PatchesSession
 import com.tuapp.puzzles.engine.session.QueensSession
@@ -23,6 +24,7 @@ import com.tuapp.puzzles.engine.zip.ZipLevel
 import com.tuapp.puzzles.ui.nav.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,6 +68,9 @@ class GameViewModel @Inject constructor(
     private val _hintHighlight = MutableStateFlow<Int?>(null)
     val hintHighlight: StateFlow<Int?> = _hintHighlight.asStateFlow()
 
+    private val _queensHint = MutableStateFlow<QueensHint?>(null)
+    val queensHint: StateFlow<QueensHint?> = _queensHint.asStateFlow()
+
     private var paused = false
     private var level: PuzzleLevel? = null
     private var ref: LevelRef? = null
@@ -102,6 +107,7 @@ class GameViewModel @Inject constructor(
         level = l; ref = r; title = t
         _elapsedMs.value = 0
         _solved.value = false
+        _queensHint.value = null
         _ui.value = GameUi.Ready(t, createSession(l))
     }
 
@@ -120,6 +126,7 @@ class GameViewModel @Inject constructor(
     fun perform(block: () -> Unit) {
         val session = (_ui.value as? GameUi.Ready)?.session ?: return
         if (_solved.value) return
+        _queensHint.value = null // Cualquier interacción en el tablero descarta la pista pendiente
         block()
         _revision.update { it + 1 }
         if (isSolved(session)) onSolved()
@@ -138,20 +145,47 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    fun hint() = withSession { s ->
-        val cell = when (s) {
-            is TangoSession -> s.hint()
-            is QueensSession -> s.hint()
-            is SudokuSession -> s.hint()?.first
-            is ZipSession -> s.hint()
-            is PatchesSession -> s.hint()
-            else -> null
+    fun dismissQueensHint() {
+        _queensHint.value = null
+    }
+
+    fun applyQueensHint(autoMark: Boolean = true) {
+        val h = _queensHint.value ?: return
+        val s = (_ui.value as? GameUi.Ready)?.session as? QueensSession ?: return
+        _queensHint.value = null
+        perform {
+            s.applyHint(h, autoMark)
         }
-        if (cell != null) {
-            _hintHighlight.value = cell
-            viewModelScope.launch {
-                delay(1500)
-                if (_hintHighlight.value == cell) _hintHighlight.value = null
+    }
+
+    fun hint() {
+        val s = (_ui.value as? GameUi.Ready)?.session ?: return
+        if (s is QueensSession) {
+            val pending = _queensHint.value
+            if (pending != null) {
+                applyQueensHint()
+            } else {
+                viewModelScope.launch(Dispatchers.Default) {
+                    val next = s.currentHint()
+                    _queensHint.value = next
+                }
+            }
+            return
+        }
+        withSession { session ->
+            val cell = when (session) {
+                is TangoSession -> session.hint()
+                is SudokuSession -> session.hint()?.first
+                is ZipSession -> session.hint()
+                is PatchesSession -> session.hint()
+                else -> null
+            }
+            if (cell != null) {
+                _hintHighlight.value = cell
+                viewModelScope.launch {
+                    delay(1500)
+                    if (_hintHighlight.value == cell) _hintHighlight.value = null
+                }
             }
         }
     }

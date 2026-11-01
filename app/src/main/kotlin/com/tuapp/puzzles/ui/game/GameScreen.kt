@@ -63,6 +63,7 @@ fun GameScreen(
     val elapsed by vm.elapsedMs.collectAsStateWithLifecycle()
     val solved by vm.solved.collectAsStateWithLifecycle()
     val hintHighlight by vm.hintHighlight.collectAsStateWithLifecycle()
+    val queensHint by vm.queensHint.collectAsStateWithLifecycle()
     var showHelp by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -89,7 +90,13 @@ fun GameScreen(
                     IconButton(onClick = { showHelp = true }) { Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Cómo jugar") }
                     IconButton(onClick = vm::undo) { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Deshacer") }
                     IconButton(onClick = vm::clear) { Icon(Icons.Filled.DeleteSweep, contentDescription = "Borrar todo") }
-                    IconButton(onClick = vm::hint) { Icon(Icons.Filled.Lightbulb, contentDescription = "Pista") }
+                    IconButton(onClick = vm::hint) {
+                        Icon(
+                            Icons.Filled.Lightbulb,
+                            contentDescription = "Pista",
+                            tint = if (queensHint != null) MaterialTheme.colorScheme.primary else androidx.compose.material3.LocalContentColor.current,
+                        )
+                    }
                     IconButton(onClick = vm::restart) { Icon(Icons.Filled.Refresh, contentDescription = "Reiniciar") }
                 },
             )
@@ -101,7 +108,16 @@ fun GameScreen(
                 is GameUi.Failed -> Text(u.message, color = MaterialTheme.colorScheme.error)
                 is GameUi.Ready -> when (val s = u.session) {
                     is TangoSession -> TangoBoard(s, revision, vm::perform, boardModifier, hintHighlight)
-                    is QueensSession -> QueensBoard(s, revision, vm::perform, boardModifier, hintHighlight)
+                    is QueensSession -> QueensBoard(
+                        session = s,
+                        revision = revision,
+                        act = vm::perform,
+                        modifier = boardModifier,
+                        highlight = hintHighlight,
+                        hint = queensHint,
+                        onApplyHint = vm::applyQueensHint,
+                        onDismissHint = vm::dismissQueensHint,
+                    )
                     is SudokuSession -> SudokuBoard(s, revision, vm::perform, boardModifier, hintHighlight)
                     is ZipSession -> ZipBoard(s, revision, vm::perform, boardModifier, hintHighlight)
                     is PatchesSession -> PatchesBoard(s, revision, vm::perform, boardModifier, hintHighlight)
