@@ -12,6 +12,7 @@ import com.tuapp.puzzles.data.ProgressRepository
 import com.tuapp.puzzles.engine.patches.PatchesLevel
 import com.tuapp.puzzles.engine.queens.QueensHint
 import com.tuapp.puzzles.engine.queens.QueensLevel
+import com.tuapp.puzzles.engine.queens.QueensTechnique
 import com.tuapp.puzzles.engine.session.PatchesSession
 import com.tuapp.puzzles.engine.session.QueensSession
 import com.tuapp.puzzles.engine.session.Snapshotted
@@ -131,23 +132,52 @@ class GameViewModel @Inject constructor(
     fun perform(block: () -> Unit) {
         val session = (_ui.value as? GameUi.Ready)?.session ?: return
         if (_solved.value) return
-        _queensHint.value = null // Cualquier interacción en el tablero descarta la pista pendiente
+        val currentQueensHint = _queensHint.value
         _tangoHint.value = null
         block()
+        if (session is QueensSession && currentQueensHint != null) {
+            val shouldDismiss = when (currentQueensHint) {
+                is QueensHint.Eliminate -> {
+                    // Mantener las casillas marcadas por la pista hasta que el jugador las marque todas con X
+                    currentQueensHint.cells.all { session.state[it] == QueensSession.MARK }
+                }
+                is QueensHint.PlaceQueen -> {
+                    session.state[currentQueensHint.cell] == QueensSession.QUEEN
+                }
+                is QueensHint.Wrong -> {
+                    when (currentQueensHint.technique) {
+                        QueensTechnique.WRONG_QUEEN -> currentQueensHint.cells.none { session.state[it] == QueensSession.QUEEN }
+                        QueensTechnique.WRONG_MARK -> currentQueensHint.cells.none { session.state[it] == QueensSession.MARK }
+                        else -> true
+                    }
+                }
+            }
+            if (shouldDismiss) {
+                _queensHint.value = null
+            } else {
+                _queensHint.value = currentQueensHint
+            }
+        } else {
+            _queensHint.value = null
+        }
         _revision.update { it + 1 }
         if (isSolved(session)) onSolved()
     }
 
     fun undo() = withSession { (it as Snapshotted<*>).undo() }
 
-    fun clear() = withSession { s ->
-        when (s) {
-            is TangoSession -> s.clear()
-            is QueensSession -> s.clear()
-            is SudokuSession -> s.clear()
-            is ZipSession -> s.clear()
-            is PatchesSession -> s.clear()
-            else -> Unit
+    fun clear() {
+        _queensHint.value = null
+        _tangoHint.value = null
+        withSession { s ->
+            when (s) {
+                is TangoSession -> s.clear()
+                is QueensSession -> s.clear()
+                is SudokuSession -> s.clear()
+                is ZipSession -> s.clear()
+                is PatchesSession -> s.clear()
+                else -> Unit
+            }
         }
     }
 
@@ -158,10 +188,10 @@ class GameViewModel @Inject constructor(
     fun applyQueensHint(autoMark: Boolean = true) {
         val h = _queensHint.value ?: return
         val s = (_ui.value as? GameUi.Ready)?.session as? QueensSession ?: return
-        _queensHint.value = null
         perform {
             s.applyHint(h, autoMark)
         }
+        _queensHint.value = null
     }
 
     fun dismissTangoHint() {

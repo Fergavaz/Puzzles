@@ -210,7 +210,8 @@ fun QueensBoard(
         val hintBgColor = when {
             isHintWrong -> Color.Red.copy(alpha = 0.4f)
             isHintPlaceTarget -> Color(0xFFFFD54F).copy(alpha = 0.55f)
-            isHintEliminateTarget -> Color(0xFFFFAB91).copy(alpha = 0.45f)
+            isHintEliminateTarget && state == QueensSession.EMPTY -> Color(0xFFFFAB91).copy(alpha = 0.45f)
+            isHintEliminateTarget && state == QueensSession.MARK -> Color(0xFF81C784).copy(alpha = 0.25f)
             isHintCause -> Color(0xFFFFF59D).copy(alpha = 0.5f)
             isUnitHighlighted -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             i == highlight -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)
@@ -221,7 +222,7 @@ fun QueensBoard(
         val hintModifier = when {
             isHintWrong -> Modifier.border(2.dp, Color.Red, RoundedCornerShape(2.dp))
             isHintPlaceTarget -> Modifier.border(2.5.dp, Color(0xFFFFA000), RoundedCornerShape(2.dp))
-            isHintEliminateTarget -> Modifier.border(1.5.dp, Color(0xFFE64A19).copy(alpha = 0.8f), RoundedCornerShape(2.dp))
+            isHintEliminateTarget && state == QueensSession.EMPTY -> Modifier.border(1.5.dp, Color(0xFFE64A19).copy(alpha = 0.8f), RoundedCornerShape(2.dp))
             else -> Modifier
         }
 
@@ -249,7 +250,8 @@ fun QueensBoard(
                         append("Fila ${r + 1}, columna ${c + 1}, región ${reg + 1}: $label")
                         if (isHintWrong) append(" (Error detectado por pista)")
                         if (isHintPlaceTarget) append(" (Pista: colocar corona aquí)")
-                        if (isHintEliminateTarget) append(" (Pista: marcar X aquí)")
+                        if (isHintEliminateTarget && state == QueensSession.EMPTY) append(" (Pista: marcar X aquí)")
+                        if (isHintEliminateTarget && state == QueensSession.MARK) append(" (Marcada según pista)")
                         if (isHintCause) append(" (Causa de la pista)")
                     }
                     onClick(label = "Cambiar casilla") {
@@ -289,8 +291,12 @@ fun QueensBoard(
                 )
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
+                    val remainingText = if (hint is QueensHint.Eliminate) {
+                        val remaining = hint.cells.count { session.state[it] != QueensSession.MARK }
+                        if (remaining in 1 until hint.cells.size) " ($remaining restantes)" else ""
+                    } else ""
                     Text(
-                        text = formatQueensHint(hint),
+                        text = formatQueensHint(hint) + remainingText,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
