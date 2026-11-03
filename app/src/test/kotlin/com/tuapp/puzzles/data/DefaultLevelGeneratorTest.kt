@@ -13,9 +13,23 @@ import org.junit.Test
 
 class DefaultLevelGeneratorTest {
 
-    private class FakeCampaignRepository(private val campaignLevels: List<CampaignLevel>) : CampaignRepository {
+    private class FakeCampaignRepository(private var campaignLevels: List<CampaignLevel>) : CampaignRepository {
         override suspend fun levels(game: GameType): List<CampaignLevel> = campaignLevels
         override suspend fun level(game: GameType, id: String): CampaignLevel? = campaignLevels.find { it.id == id }
+        override suspend fun addLevel(game: GameType, level: com.tuapp.puzzles.core.PuzzleLevel): CampaignLevel {
+            val cl = CampaignLevel("${game.id}-c${campaignLevels.size}", campaignLevels.size, level)
+            campaignLevels = campaignLevels + cl
+            return cl
+        }
+        override suspend fun addLevels(game: GameType, newLevels: List<com.tuapp.puzzles.core.PuzzleLevel>): List<CampaignLevel> {
+            val added = newLevels.mapIndexed { i, lvl ->
+                CampaignLevel("${game.id}-c${campaignLevels.size + i}", campaignLevels.size + i, lvl)
+            }
+            campaignLevels = campaignLevels + added
+            return added
+        }
+        override suspend fun generateAdditionalLevels(game: GameType, count: Int): List<CampaignLevel> = emptyList()
+        override suspend fun generateAdditionalLevelsIfCompleted(game: GameType, completedIds: Set<String>, count: Int): List<CampaignLevel> = emptyList()
     }
 
     @Test

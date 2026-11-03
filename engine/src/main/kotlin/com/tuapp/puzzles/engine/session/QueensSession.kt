@@ -5,6 +5,7 @@ import com.tuapp.puzzles.engine.queens.*
 /** Toques cíclicos: vacío -> X -> reina -> vacío. */
 class QueensSession(val level: QueensLevel) : Snapshotted<List<Int>>(List(level.puzzle.size * level.puzzle.size) { EMPTY }) {
     private val n = level.puzzle.size
+    private val autoMarkedByQueen = mutableMapOf<Int, MutableSet<Int>>()
 
     fun markEmpty(cell: Int) {
         if (state[cell] == EMPTY) {
@@ -18,14 +19,46 @@ class QueensSession(val level: QueensLevel) : Snapshotted<List<Int>>(List(level.
         }
     }
 
+    private fun isCoveredByAnyQueen(target: Int, queenCells: Set<Int>): Boolean {
+        val r = target / n
+        val c = target % n
+        val reg = level.puzzle.regions[target]
+        for (q in queenCells) {
+            val qr = q / n
+            val qc = q % n
+            val isRow = qr == r
+            val isCol = qc == c
+            val isAdj = kotlin.math.abs(qr - r) <= 1 && kotlin.math.abs(qc - c) <= 1
+            val isSameReg = level.puzzle.regions[q] == reg
+            if (isRow || isCol || isAdj || isSameReg) return true
+        }
+        return false
+    }
+
     fun tap(cell: Int, autoMark: Boolean = false) {
-        val next = when (state[cell]) { EMPTY -> MARK; MARK -> QUEEN; else -> EMPTY }
+        val prev = state[cell]
+        val next = when (prev) { EMPTY -> MARK; MARK -> QUEEN; else -> EMPTY }
         val nextList = state.toMutableList()
         nextList[cell] = next
+
+        // Si se retira una reina existente (pasa de QUEEN a EMPTY)
+        if (prev == QUEEN && next == EMPTY) {
+            val autoMarked = autoMarkedByQueen.remove(cell) ?: emptySet()
+            if (autoMarked.isNotEmpty()) {
+                val otherQueens = queens - cell
+                for (target in autoMarked) {
+                    if (nextList[target] == MARK && !isCoveredByAnyQueen(target, otherQueens)) {
+                        nextList[target] = EMPTY
+                    }
+                }
+            }
+        }
+
         if (autoMark && next == QUEEN) {
             val r = cell / n
             val c = cell % n
             val reg = level.puzzle.regions[cell]
+            val newlyMarked = mutableSetOf<Int>()
             for (i in nextList.indices) {
                 if (i == cell || nextList[i] != EMPTY) continue
                 val ir = i / n
@@ -36,13 +69,28 @@ class QueensSession(val level: QueensLevel) : Snapshotted<List<Int>>(List(level.
                 val isSameReg = level.puzzle.regions[i] == reg
                 if (isRow || isCol || isAdj || isSameReg) {
                     nextList[i] = MARK
+                    newlyMarked.add(i)
                 }
+            }
+            if (newlyMarked.isNotEmpty()) {
+                autoMarkedByQueen[cell] = newlyMarked
             }
         }
         change(nextList)
     }
 
-    fun clear() = change(List(n * n) { EMPTY })
+    override fun undo(): Boolean {
+        val didUndo = super.undo()
+        if (didUndo) {
+            autoMarkedByQueen.keys.retainAll(queens)
+        }
+        return didUndo
+    }
+
+    fun clear() {
+        autoMarkedByQueen.clear()
+        change(List(n * n) { EMPTY })
+    }
 
     val queens: Set<Int> get() = state.indices.filter { state[it] == QUEEN }.toSet()
 
@@ -60,6 +108,15 @@ class QueensSession(val level: QueensLevel) : Snapshotted<List<Int>>(List(level.
         when (hint) {
             is QueensHint.Wrong -> {
                 for (c in hint.cells) {
+                    if (state[c] == QUEEN) {
+                        val autoMarked = autoMarkedByQueen.remove(c) ?: emptySet()
+                        val otherQueens = queens - hint.cells
+                        for (target in autoMarked) {
+                            if (nextList[target] == MARK && !isCoveredByAnyQueen(target, otherQueens)) {
+                                nextList[target] = EMPTY
+                            }
+                        }
+                    }
                     nextList[c] = EMPTY
                 }
             }
@@ -70,6 +127,7 @@ class QueensSession(val level: QueensLevel) : Snapshotted<List<Int>>(List(level.
                     val r = cell / n
                     val c = cell % n
                     val reg = level.puzzle.regions[cell]
+                    val newlyMarked = mutableSetOf<Int>()
                     for (i in nextList.indices) {
                         if (i == cell || nextList[i] != EMPTY) continue
                         val ir = i / n
@@ -80,7 +138,11 @@ class QueensSession(val level: QueensLevel) : Snapshotted<List<Int>>(List(level.
                         val isSameReg = level.puzzle.regions[i] == reg
                         if (isRow || isCol || isAdj || isSameReg) {
                             nextList[i] = MARK
+                            newlyMarked.add(i)
                         }
+                    }
+                    if (newlyMarked.isNotEmpty()) {
+                        autoMarkedByQueen[cell] = newlyMarked
                     }
                 }
             }

@@ -31,6 +31,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -100,8 +101,9 @@ class GameViewModel @Inject constructor(
                 start(cl.level, LevelRef.Campaign(cl.id), "Nivel ${cl.index + 1}")
             } else {
                 val g = if (seedArg >= 0) generator.generate(game, difficultyArg, seedArg) else generator.generate(game, difficultyArg)
-                val label = if (g.ref is LevelRef.Campaign) "Nivel de respaldo" else "Generado"
-                start(g.level, g.ref, label)
+                // Las pantallas generadas quedan guardadas junto a las campañas
+                val cl = campaign.addLevel(game, g.level)
+                start(cl.level, LevelRef.Campaign(cl.id), "Nivel ${cl.index + 1}")
             }
         } catch (e: Exception) {
             _ui.value = GameUi.Failed(e.message ?: "No se pudo cargar el nivel")
@@ -272,14 +274,29 @@ class GameViewModel @Inject constructor(
         _solved.value = true
         val r = ref ?: return
         val time = _elapsedMs.value
-        viewModelScope.launch { progress.recordCompletion(game, r, time) }
+        viewModelScope.launch {
+            progress.recordCompletion(game, r, time)
+            if (r is LevelRef.Campaign) {
+                val p = progress.progress.first()[game]
+                val completedIds = (p?.campaignCompletedIds ?: emptySet()) + r.id
+                campaign.generateAdditionalLevelsIfCompleted(game, completedIds, 10)
+            }
+        }
     }
 
     /** Ruta del siguiente nivel: el siguiente de campaña, o uno nuevo de la misma dificultad si era generado. */
     suspend fun nextRoute(): String? = when (val r = ref) {
         is LevelRef.Campaign -> {
-            val levels = campaign.levels(game)
+            var levels = campaign.levels(game)
             val i = levels.indexOfFirst { it.id == r.id }
+            if (i >= 0 && i + 1 >= levels.size) {
+                val p = progress.progress.first()[game]
+                val completedIds = (p?.campaignCompletedIds ?: emptySet()) + r.id
+                val added = campaign.generateAdditionalLevelsIfCompleted(game, completedIds, 10)
+                if (added.isNotEmpty()) {
+                    levels = campaign.levels(game)
+                }
+            }
             levels.getOrNull(i + 1)?.let { Routes.playLevel(game, it.id) }
         }
         is LevelRef.Generated -> Routes.playNew(game, r.difficulty)

@@ -21,7 +21,7 @@ abstract class Snapshotted<S>(initial: S) {
         if (before != state) history.addLast(before)
     }
 
-    fun undo(): Boolean {
+    open fun undo(): Boolean {
         val prev = history.removeLastOrNull() ?: return false
         state = prev
         return true

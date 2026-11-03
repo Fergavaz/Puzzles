@@ -23,7 +23,7 @@ data class CampaignUi(
 @HiltViewModel
 class CampaignViewModel @Inject constructor(
     savedState: SavedStateHandle,
-    campaign: CampaignRepository,
+    private val campaign: CampaignRepository,
     progress: ProgressRepository,
 ) : ViewModel() {
 
@@ -32,7 +32,9 @@ class CampaignViewModel @Inject constructor(
     val state: StateFlow<CampaignUi> = progress.progress
         .map { all ->
             val p = all.getValue(game)
-            CampaignUi(campaign.levels(game), p.campaignCompletedIds, p.bestTimesById)
+            campaign.generateAdditionalLevelsIfCompleted(game, p.campaignCompletedIds, 10)
+            val currentLevels = campaign.levels(game)
+            CampaignUi(currentLevels, p.campaignCompletedIds, p.bestTimesById)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CampaignUi())
 }

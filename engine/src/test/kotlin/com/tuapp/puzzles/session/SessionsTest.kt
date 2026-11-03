@@ -56,6 +56,40 @@ class SessionsTest {
         assertEquals(QueensSession.MARK, s.state[n])
     }
 
+    @Test fun queensAutoMarkXUnmarkedWhenQueenRemovedOrUndone() {
+        val s = QueensSession(queens)
+        val n = queens.puzzle.size
+        // Celda que el usuario marca manualmente antes de colocar la reina
+        s.markEmpty(2)
+        assertEquals(QueensSession.MARK, s.state[2])
+
+        // Colocar reina en 0 con autoMark
+        s.tap(0, autoMark = true)
+        s.tap(0, autoMark = true)
+        assertEquals(QueensSession.QUEEN, s.state[0])
+        assertEquals(QueensSession.MARK, s.state[1])
+        assertEquals(QueensSession.MARK, s.state[n])
+
+        // Retirar la reina tocándola (QUEEN -> EMPTY)
+        s.tap(0, autoMark = true)
+        assertEquals(QueensSession.EMPTY, s.state[0])
+        // Las casillas automarcadas se desmarcan (vuelven a EMPTY)
+        assertEquals(QueensSession.EMPTY, s.state[1])
+        assertEquals(QueensSession.EMPTY, s.state[n])
+        // La que se marcó manualmente antes sigue como MARK
+        assertEquals(QueensSession.MARK, s.state[2])
+
+        // Probar deshacer: colocar reina y luego undo
+        s.tap(0, autoMark = true) // EMPTY -> MARK
+        s.tap(0, autoMark = true) // MARK -> QUEEN con automark
+        assertEquals(QueensSession.QUEEN, s.state[0])
+        assertEquals(QueensSession.MARK, s.state[1])
+
+        assertTrue(s.undo())
+        assertEquals(QueensSession.MARK, s.state[0])
+        assertEquals(QueensSession.EMPTY, s.state[1])
+    }
+
     @Test fun queensConflictsHighlightedAndSolvedByHints() {
         val s = QueensSession(queens)
         val n = queens.puzzle.size
