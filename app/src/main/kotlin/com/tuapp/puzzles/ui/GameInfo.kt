@@ -9,6 +9,7 @@ val GameType.title: String
         GameType.SUDOKU -> "Mini Sudoku"
         GameType.TANGO -> "Tango"
         GameType.QUEENS -> "Queens"
+        GameType.SUMBREAK -> "Sumbreak"
     }
 
 val GameType.emoji: String
@@ -18,6 +19,7 @@ val GameType.emoji: String
         GameType.SUDOKU -> "🔢"
         GameType.TANGO -> "☀️"
         GameType.QUEENS -> "👑"
+        GameType.SUMBREAK -> "➕"
     }
 
 fun difficultyLabel(d: Int): String =

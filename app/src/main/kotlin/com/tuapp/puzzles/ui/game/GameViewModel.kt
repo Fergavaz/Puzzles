@@ -17,9 +17,12 @@ import com.tuapp.puzzles.engine.session.PatchesSession
 import com.tuapp.puzzles.engine.session.QueensSession
 import com.tuapp.puzzles.engine.session.Snapshotted
 import com.tuapp.puzzles.engine.session.SudokuSession
+import com.tuapp.puzzles.engine.session.SumbreakSession
 import com.tuapp.puzzles.engine.session.TangoSession
 import com.tuapp.puzzles.engine.session.ZipSession
 import com.tuapp.puzzles.engine.sudoku.SudokuLevel
+import com.tuapp.puzzles.engine.sumbreak.SumbreakHint
+import com.tuapp.puzzles.engine.sumbreak.SumbreakLevel
 import com.tuapp.puzzles.engine.tango.TangoHint
 import com.tuapp.puzzles.engine.tango.TangoLevel
 import com.tuapp.puzzles.engine.zip.ZipLevel
@@ -77,6 +80,9 @@ class GameViewModel @Inject constructor(
     private val _tangoHint = MutableStateFlow<TangoHint?>(null)
     val tangoHint: StateFlow<TangoHint?> = _tangoHint.asStateFlow()
 
+    private val _sumbreakHint = MutableStateFlow<SumbreakHint?>(null)
+    val sumbreakHint: StateFlow<SumbreakHint?> = _sumbreakHint.asStateFlow()
+
     private var paused = false
     private var level: PuzzleLevel? = null
     private var ref: LevelRef? = null
@@ -116,6 +122,7 @@ class GameViewModel @Inject constructor(
         _solved.value = false
         _queensHint.value = null
         _tangoHint.value = null
+        _sumbreakHint.value = null
         _ui.value = GameUi.Ready(t, createSession(l))
     }
 
@@ -125,6 +132,7 @@ class GameViewModel @Inject constructor(
         is SudokuLevel -> SudokuSession(l)
         is TangoLevel -> TangoSession(l)
         is QueensLevel -> QueensSession(l)
+        is SumbreakLevel -> SumbreakSession(l)
         else -> error("Nivel no soportado")
     }
 
@@ -136,6 +144,7 @@ class GameViewModel @Inject constructor(
         if (_solved.value) return
         val currentQueensHint = _queensHint.value
         _tangoHint.value = null
+        _sumbreakHint.value = null
         block()
         if (session is QueensSession && currentQueensHint != null) {
             val shouldDismiss = when (currentQueensHint) {
@@ -171,6 +180,7 @@ class GameViewModel @Inject constructor(
     fun clear() {
         _queensHint.value = null
         _tangoHint.value = null
+        _sumbreakHint.value = null
         withSession { s ->
             when (s) {
                 is TangoSession -> s.clear()
@@ -178,6 +188,7 @@ class GameViewModel @Inject constructor(
                 is SudokuSession -> s.clear()
                 is ZipSession -> s.clear()
                 is PatchesSession -> s.clear()
+                is SumbreakSession -> s.clear()
                 else -> Unit
             }
         }
@@ -209,6 +220,19 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    fun dismissSumbreakHint() {
+        _sumbreakHint.value = null
+    }
+
+    fun applySumbreakHint() {
+        val h = _sumbreakHint.value ?: return
+        val s = (_ui.value as? GameUi.Ready)?.session as? SumbreakSession ?: return
+        _sumbreakHint.value = null
+        perform {
+            s.applyHint(h)
+        }
+    }
+
     fun hint() {
         val s = (_ui.value as? GameUi.Ready)?.session ?: return
         if (s is QueensSession) {
@@ -231,6 +255,18 @@ class GameViewModel @Inject constructor(
                 viewModelScope.launch(Dispatchers.Default) {
                     val next = s.currentHint()
                     _tangoHint.value = next
+                }
+            }
+            return
+        }
+        if (s is SumbreakSession) {
+            val pending = _sumbreakHint.value
+            if (pending != null) {
+                applySumbreakHint()
+            } else {
+                viewModelScope.launch(Dispatchers.Default) {
+                    val next = s.currentHint()
+                    _sumbreakHint.value = next
                 }
             }
             return
@@ -267,6 +303,7 @@ class GameViewModel @Inject constructor(
         is SudokuSession -> s.isSolved
         is ZipSession -> s.isSolved
         is PatchesSession -> s.isSolved
+        is SumbreakSession -> s.isSolved
         else -> false
     }
 

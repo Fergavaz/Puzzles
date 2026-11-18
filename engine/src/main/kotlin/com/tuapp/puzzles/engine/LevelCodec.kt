@@ -7,6 +7,7 @@ import com.tuapp.puzzles.core.PuzzleLevel
 import com.tuapp.puzzles.engine.patches.*
 import com.tuapp.puzzles.engine.queens.*
 import com.tuapp.puzzles.engine.sudoku.*
+import com.tuapp.puzzles.engine.sumbreak.*
 import com.tuapp.puzzles.engine.tango.*
 import com.tuapp.puzzles.engine.zip.*
 
@@ -43,6 +44,18 @@ object LevelCodec {
                 m["size"] = level.puzzle.size
                 m["regions"] = level.puzzle.regions
                 m["solution"] = level.solution
+            }
+            is SumbreakLevel -> {
+                m["size"] = level.puzzle.size
+                m["targetNumber"] = level.targetNumber
+                m["tiles"] = level.puzzle.initialTiles.map { tile ->
+                    when (tile) {
+                        is SumbreakTile.Empty -> listOf(0, 0, 0)
+                        is SumbreakTile.Number -> listOf(1, tile.value, 0)
+                        is SumbreakTile.Modifier -> listOf(2, tile.op.ordinal, tile.value)
+                    }
+                }
+                m["solution"] = level.solutionMoves.map { listOf(it.from, it.to) }
             }
             else -> throw IllegalArgumentException("Nivel desconocido: ${level::class}")
         }
@@ -81,6 +94,22 @@ object LevelCodec {
             GameType.QUEENS -> QueensLevel(
                 seed, d, QueensPuzzle(m["size"].int(), m["regions"].ints()), m["solution"].ints(),
             )
+            GameType.SUMBREAK -> {
+                val size = m["size"].int()
+                val targetNumber = m["targetNumber"].int()
+                val rawTiles = m["tiles"].lists()
+                val tiles = rawTiles.map { t ->
+                    when (t[0].int()) {
+                        1 -> SumbreakTile.Number(t[1].int())
+                        2 -> SumbreakTile.Modifier(ModifierOp.entries[t[1].int()], t[2].int())
+                        else -> SumbreakTile.Empty
+                    }
+                }
+                val solMoves = m["solution"]?.let { sol ->
+                    (sol as List<*>).map { (it as List<*>).let { move -> SumbreakMove((move[0] as Number).toInt(), (move[1] as Number).toInt()) } }
+                } ?: emptyList()
+                SumbreakLevel(seed, d, SumbreakPuzzle(size, tiles), targetNumber, solMoves)
+            }
         }
     }
 

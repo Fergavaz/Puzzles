@@ -12,7 +12,7 @@ import java.io.File
  * así que todos los niveles tienen solución única garantizada. Uso: ./gradlew :engine:generateCampaign
  */
 private val COUNTS = mapOf(
-    GameType.ZIP to 20, GameType.PATCHES to 30, GameType.SUDOKU to 40, GameType.TANGO to 30, GameType.QUEENS to 25,
+    GameType.ZIP to 20, GameType.PATCHES to 30, GameType.SUDOKU to 40, GameType.TANGO to 30, GameType.QUEENS to 25, GameType.SUMBREAK to 25,
 )
 
 /** Queens: de 5x5 a 10x10 (25 niveles). */

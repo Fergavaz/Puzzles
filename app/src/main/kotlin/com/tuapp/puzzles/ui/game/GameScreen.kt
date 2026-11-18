@@ -39,11 +39,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tuapp.puzzles.engine.session.PatchesSession
 import com.tuapp.puzzles.engine.session.QueensSession
 import com.tuapp.puzzles.engine.session.SudokuSession
+import com.tuapp.puzzles.engine.session.SumbreakSession
 import com.tuapp.puzzles.engine.session.TangoSession
 import com.tuapp.puzzles.engine.session.ZipSession
 import com.tuapp.puzzles.ui.boards.PatchesBoard
 import com.tuapp.puzzles.ui.boards.QueensBoard
 import com.tuapp.puzzles.ui.boards.SudokuBoard
+import com.tuapp.puzzles.ui.boards.SumbreakBoard
 import com.tuapp.puzzles.ui.boards.TangoBoard
 import com.tuapp.puzzles.ui.boards.ZipBoard
 import com.tuapp.puzzles.ui.formatTime
@@ -65,6 +67,7 @@ fun GameScreen(
     val hintHighlight by vm.hintHighlight.collectAsStateWithLifecycle()
     val queensHint by vm.queensHint.collectAsStateWithLifecycle()
     val tangoHint by vm.tangoHint.collectAsStateWithLifecycle()
+    val sumbreakHint by vm.sumbreakHint.collectAsStateWithLifecycle()
     var showHelp by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -95,7 +98,7 @@ fun GameScreen(
                         Icon(
                             Icons.Filled.Lightbulb,
                             contentDescription = "Pista",
-                            tint = if (queensHint != null || tangoHint != null) MaterialTheme.colorScheme.primary else androidx.compose.material3.LocalContentColor.current,
+                            tint = if (queensHint != null || tangoHint != null || sumbreakHint != null) MaterialTheme.colorScheme.primary else androidx.compose.material3.LocalContentColor.current,
                         )
                     }
                     IconButton(onClick = vm::restart) { Icon(Icons.Filled.Refresh, contentDescription = "Reiniciar") }
@@ -127,6 +130,16 @@ fun GameScreen(
                         hint = queensHint,
                         onApplyHint = vm::applyQueensHint,
                         onDismissHint = vm::dismissQueensHint,
+                    )
+                    is SumbreakSession -> SumbreakBoard(
+                        session = s,
+                        revision = revision,
+                        act = vm::perform,
+                        modifier = boardModifier,
+                        highlight = hintHighlight,
+                        hint = sumbreakHint,
+                        onApplyHint = vm::applySumbreakHint,
+                        onDismissHint = vm::dismissSumbreakHint,
                     )
                     is SudokuSession -> SudokuBoard(s, revision, vm::perform, boardModifier, hintHighlight)
                     is ZipSession -> ZipBoard(s, revision, vm::perform, boardModifier, hintHighlight)

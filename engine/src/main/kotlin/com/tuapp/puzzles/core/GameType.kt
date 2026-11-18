@@ -1,7 +1,7 @@
 package com.tuapp.puzzles.core
 
 enum class GameType(val id: String) {
-    ZIP("zip"), PATCHES("patches"), SUDOKU("sudoku"), TANGO("tango"), QUEENS("queens");
+    ZIP("zip"), PATCHES("patches"), SUDOKU("sudoku"), TANGO("tango"), QUEENS("queens"), SUMBREAK("sumbreak");
 
     companion object {
         fun fromId(id: String): GameType = entries.first { it.id == id }

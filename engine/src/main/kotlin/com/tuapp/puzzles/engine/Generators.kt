@@ -5,6 +5,7 @@ import com.tuapp.puzzles.core.PuzzleLevel
 import com.tuapp.puzzles.engine.patches.PatchesGenerator
 import com.tuapp.puzzles.engine.queens.QueensGenerator
 import com.tuapp.puzzles.engine.sudoku.SudokuGenerator
+import com.tuapp.puzzles.engine.sumbreak.SumbreakGenerator
 import com.tuapp.puzzles.engine.tango.TangoGenerator
 import com.tuapp.puzzles.engine.zip.ZipGenerator
 
@@ -16,5 +17,6 @@ object Generators {
         GameType.SUDOKU -> SudokuGenerator().generate(seed, difficulty)
         GameType.TANGO -> TangoGenerator().generate(seed, difficulty)
         GameType.QUEENS -> QueensGenerator().generate(seed, difficulty)
+        GameType.SUMBREAK -> SumbreakGenerator().generate(seed, difficulty)
     }
 }

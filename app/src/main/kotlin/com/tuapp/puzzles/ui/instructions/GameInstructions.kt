@@ -88,6 +88,19 @@ fun getInstructions(game: GameType): InstructionData = when (game) {
         ),
         strategy = "Las casillas de pista ya tienen el color de su parche asignado desde el principio. Empieza dibujando los parches cuyas dimensiones estén forzadas por las esquinas o bordes del tablero.",
     )
+    GameType.SUMBREAK -> InstructionData(
+        title = "Cómo jugar a Sumbreak",
+        description = "Sumbreak es un puzle aritmético donde debes combinar casillas numéricas y operadores arrastrando hasta reducir todo el tablero a un único número.",
+        objective = "Reducir la cuadrícula a un solo número sin dejar modificadores.",
+        rules = listOf(
+            "Arrastra un número hacia una casilla adyacente (arriba, abajo, izquierda, derecha) con el mismo valor para sumarlos (ej. 2 + 2 = 4).",
+            "La casilla de origen queda vacía tras el movimiento.",
+            "Arrastra un número hacia una ficha modificadora (+, -, × o comodín ★) para aplicar la operación matemática correspondiente.",
+            "Ganas cuando solo queda 1 ficha numérica en todo el tablero y no quedan modificadores.",
+            "Si quedan varios números sin movimientos válidos adyacentes, habrás llegado a un callejón sin salida (puedes deshacer o reiniciar).",
+        ),
+        strategy = "Planifica el orden de fusiones para no aislar números en las esquinas o bordes. Usa los modificadores en el momento oportuno para igualar números adyacentes.",
+    )
 }
 
 @Composable

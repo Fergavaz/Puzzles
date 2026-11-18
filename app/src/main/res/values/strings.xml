@@ -81,4 +81,9 @@
     <string name="symbol_suns">soles</string>
     <string name="symbol_moon">luna</string>
     <string name="symbol_moons">lunas</string>
+
+    <!-- Sumbreak Hint System -->
+    <string name="sumbreak_hint_apply">Aplicar</string>
+    <string name="sumbreak_hint_dismiss">Descartar</string>
+    <string name="sumbreak_hint_dead_end">¡Bloqueo! No hay movimientos válidos hacia la victoria. Pulsa Deshacer para retroceder.</string>
 </resources>

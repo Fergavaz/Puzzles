@@ -8,6 +8,7 @@ import com.tuapp.puzzles.engine.LevelCodec
 import com.tuapp.puzzles.engine.patches.*
 import com.tuapp.puzzles.engine.queens.*
 import com.tuapp.puzzles.engine.sudoku.*
+import com.tuapp.puzzles.engine.sumbreak.*
 import com.tuapp.puzzles.engine.tango.*
 import com.tuapp.puzzles.engine.zip.*
 import java.io.File
@@ -39,7 +40,7 @@ class CodecAndCampaignTest {
     @Test fun shippedCampaignHasRequiredSizeOrderAndUniqueSolutions() {
         val dir = campaignDir() ?: return   // si aún no se ha generado, no se comprueba
         val expected = mapOf(
-            GameType.ZIP to 20, GameType.PATCHES to 30, GameType.SUDOKU to 40, GameType.TANGO to 30, GameType.QUEENS to 25,
+            GameType.ZIP to 20, GameType.PATCHES to 30, GameType.SUDOKU to 40, GameType.TANGO to 30, GameType.QUEENS to 25, GameType.SUMBREAK to 25,
         )
         for (game in GameType.entries) {
             val levels = CampaignCodec.decode(game, File(dir, "${game.id}.json").readText())
@@ -56,6 +57,7 @@ class CodecAndCampaignTest {
                     is TangoLevel -> TangoSolver.countSolutions(l.puzzle, 2) == 1 && TangoRules.isSolved(l.puzzle, l.solution)
                     is QueensLevel -> QueensSolver.countSolutions(l.puzzle, 2) == 1 &&
                         QueensRules.isSolved(l.puzzle, l.solution.mapIndexed { r, c -> r * l.puzzle.size + c }.toSet())
+                    is SumbreakLevel -> SumbreakSolver.solve(l.puzzle) != null
                     else -> false
                 }
                 assertTrue(ok, "${cl.id} no es válido o no tiene solución única")
