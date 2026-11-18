@@ -7,7 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -47,16 +47,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.tuapp.puzzles.R
 import com.tuapp.puzzles.engine.session.SumbreakSession
 import com.tuapp.puzzles.engine.sumbreak.ModifierOp
@@ -100,6 +106,9 @@ fun SumbreakBoard(
     var selectedCell by remember { mutableIntStateOf(-1) }
     var draggingFrom by remember { mutableIntStateOf(-1) }
     var dragTarget by remember { mutableIntStateOf(-1) }
+    var dragOffset by remember { mutableStateOf<Offset?>(null) }
+
+    val density = LocalDensity.current
 
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         BoxWithConstraints(
@@ -112,49 +121,101 @@ fun SumbreakBoard(
                         fun cellAt(pos: Offset): Int? {
                             val c = (pos.x / cellSizePx).toInt()
                             val r = (pos.y / cellSizePx).toInt()
-                            return if (c in 0 until n && r in 0 until n && pos.x >= 0 && pos.y >= 0) r * n + c else null
+                            return if (c in 0 until n && r in 0 until n &&
+                                pos.x >= 0 && pos.y >= 0 &&
+                                pos.x <= size.width && pos.y <= size.height
+                            ) {
+                                r * n + c
+                            } else null
                         }
 
-                        val down = awaitFirstDown()
+                        val down = awaitFirstDown(requireUnconsumed = false)
                         val startCell = cellAt(down.position)
+                        val downPos = down.position
 
-                        if (startCell != null && tiles[startCell] !is SumbreakTile.Empty) {
-                            draggingFrom = startCell
-                            var currentTarget: Int? = null
-
-                            try {
-                                drag(down.id) { change ->
-                                    val curCell = cellAt(change.position)
-                                    if (curCell != null && curCell != startCell && session.canMove(startCell, curCell)) {
-                                        currentTarget = curCell
-                                        dragTarget = curCell
-                                    } else {
-                                        currentTarget = null
-                                        dragTarget = -1
-                                    }
-                                    change.consume()
-                                }
-                            } finally {
-                                val target = currentTarget
-                                if (target != null && session.canMove(startCell, target)) {
-                                    act { session.makeMove(startCell, target) }
-                                    selectedCell = -1
-                                }
-                                draggingFrom = -1
-                                dragTarget = -1
+                        if (startCell == null || tiles[startCell] is SumbreakTile.Empty) {
+                            // Tocado en casilla vacía: deseleccionar si había selección
+                            val up = waitForUpOrCancellation()
+                            if (up != null && selectedCell >= 0) {
+                                selectedCell = -1
                             }
+                            return@awaitEachGesture
+                        }
+
+                        var isDrag = false
+                        var targetCell: Int? = null
+
+                        try {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                                if (change.pressed) {
+                                    val pos = change.position
+                                    val distance = (pos - downPos).getDistance()
+
+                                    // Si se mueve más allá del umbral (14 px), se activa el modo arrastre
+                                    if (!isDrag && distance > 14f) {
+                                        isDrag = true
+                                        draggingFrom = startCell
+                                    }
+
+                                    if (isDrag) {
+                                        dragOffset = pos
+                                        val hover = cellAt(pos)
+                                        if (hover != null && hover != startCell && session.canMove(startCell, hover)) {
+                                            targetCell = hover
+                                            dragTarget = hover
+                                        } else {
+                                            targetCell = null
+                                            dragTarget = -1
+                                        }
+                                        change.consume()
+                                    }
+                                } else {
+                                    // Dedo levantado (UP)
+                                    if (isDrag) {
+                                        val finalTarget = targetCell
+                                        if (finalTarget != null && session.canMove(startCell, finalTarget)) {
+                                            act { session.makeMove(startCell, finalTarget) }
+                                            selectedCell = -1
+                                        }
+                                        change.consume()
+                                    } else {
+                                        // Fue un toque (tap): alternar selección o fusionar
+                                        if (selectedCell == -1) {
+                                            selectedCell = startCell
+                                        } else if (selectedCell == startCell) {
+                                            selectedCell = -1
+                                        } else if (session.canMove(selectedCell, startCell)) {
+                                            act { session.makeMove(selectedCell, startCell) }
+                                            selectedCell = -1
+                                        } else {
+                                            selectedCell = startCell
+                                        }
+                                    }
+                                    break
+                                }
+                            }
+                        } finally {
+                            draggingFrom = -1
+                            dragTarget = -1
+                            dragOffset = null
                         }
                     }
                 },
         ) {
             val cs = maxWidth / n
+            val cellSizePx = constraints.maxWidth / n.toFloat()
 
+            // Celdas del tablero
             for (i in 0 until n * n) {
                 val col = i % n
                 val row = i / n
                 val tile = tiles[i]
 
-                val isSelected = (selectedCell == i) || (draggingFrom == i)
+                val isSelected = (selectedCell == i)
+                val isBeingDragged = (draggingFrom == i)
                 val isValidTarget = (selectedCell >= 0 && session.canMove(selectedCell, i)) ||
                     (draggingFrom >= 0 && session.canMove(draggingFrom, i))
                 val isDragTarget = (dragTarget == i)
@@ -173,33 +234,41 @@ fun SumbreakBoard(
                         tile = tile,
                         cellSize = cs,
                         isSelected = isSelected,
+                        isBeingDragged = isBeingDragged,
                         isValidTarget = isValidTarget,
                         isDragTarget = isDragTarget,
                         isHintFrom = isHintFrom,
                         isHintTo = isHintTo,
                         isDeadEnd = isDeadEndTile,
-                        onClick = {
-                            if (selectedCell == -1) {
-                                if (tile !is SumbreakTile.Empty) {
-                                    selectedCell = i
-                                }
-                            } else if (selectedCell == i) {
-                                selectedCell = -1
-                            } else if (session.canMove(selectedCell, i)) {
-                                act { session.makeMove(selectedCell, i) }
-                                selectedCell = -1
-                            } else if (tile !is SumbreakTile.Empty) {
-                                selectedCell = i
-                            } else {
-                                selectedCell = -1
-                            }
-                        },
                     )
+                }
+            }
+
+            // Ficha flotante arrastrada siguiendo el dedo
+            val currentDragPos = dragOffset
+            if (draggingFrom in 0 until (n * n) && currentDragPos != null) {
+                val draggedTile = tiles[draggingFrom]
+                if (draggedTile !is SumbreakTile.Empty) {
+                    val floatingSize = cs * 0.95f
+                    val leftDp = with(density) { (currentDragPos.x - cellSizePx / 2).toDp() }
+                    val topDp = with(density) { (currentDragPos.y - cellSizePx / 2).toDp() }
+
+                    Box(
+                        modifier = Modifier
+                            .offset(leftDp, topDp)
+                            .size(floatingSize)
+                            .zIndex(100f),
+                    ) {
+                        SumbreakFloatingTileView(
+                            tile = draggedTile,
+                            cellSize = floatingSize,
+                        )
+                    }
                 }
             }
         }
 
-        // 2-Step Hint Card
+        // Tarjeta de pista en 2 pasos
         if (hint != null) {
             Spacer(Modifier.height(12.dp))
             ElevatedCard(
@@ -251,17 +320,17 @@ private fun SumbreakCellView(
     tile: SumbreakTile,
     cellSize: Dp,
     isSelected: Boolean,
+    isBeingDragged: Boolean,
     isValidTarget: Boolean,
     isDragTarget: Boolean,
     isHintFrom: Boolean,
     isHintTo: Boolean,
     isDeadEnd: Boolean,
-    onClick: () -> Unit,
 ) {
     val scale by animateFloatAsState(
         targetValue = when {
-            isDragTarget -> 1.08f
-            isSelected -> 1.04f
+            isDragTarget -> 1.10f
+            isSelected -> 1.05f
             else -> 1.0f
         },
         label = "scale",
@@ -269,11 +338,11 @@ private fun SumbreakCellView(
 
     val borderColor by animateColorAsState(
         targetValue = when {
-            isDragTarget -> Color(0xFF2E7D32) // Dark green
-            isValidTarget -> Color(0xFF4CAF50) // Green
+            isDragTarget -> Color(0xFF2E7D32) // Verde oscuro activo
+            isValidTarget -> Color(0xFF4CAF50) // Verde guía
             isSelected -> MaterialTheme.colorScheme.primary
             isHintTo -> Color(0xFF2E7D32)
-            isHintFrom -> Color(0xFFFFA000) // Amber
+            isHintFrom -> Color(0xFFFFA000) // Ámbar
             isDeadEnd -> MaterialTheme.colorScheme.error
             else -> Color.Transparent
         },
@@ -286,6 +355,8 @@ private fun SumbreakCellView(
         else -> 0.dp
     }
 
+    val alpha = if (isBeingDragged) 0.35f else 1.0f
+
     when (tile) {
         is SumbreakTile.Empty -> {
             Box(
@@ -295,10 +366,9 @@ private fun SumbreakCellView(
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
                     .border(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                         shape = RoundedCornerShape(8.dp),
                     )
-                    .clickable(onClick = onClick)
                     .semantics {
                         contentDescription = "Casilla vacía"
                     },
@@ -310,6 +380,7 @@ private fun SumbreakCellView(
             Surface(
                 modifier = Modifier
                     .fillMaxSize()
+                    .graphicsLayer { this.alpha = alpha }
                     .scale(scale)
                     .clip(RoundedCornerShape(10.dp))
                     .background(bg)
@@ -320,11 +391,11 @@ private fun SumbreakCellView(
                             Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
                         },
                     )
-                    .clickable(onClick = onClick)
                     .semantics {
+                        role = Role.Button
                         contentDescription = "Número ${tile.value}" +
                             (if (isSelected) ", seleccionado" else "") +
-                            (if (isValidTarget) ", objetivo válido" else "")
+                            (if (isValidTarget) ", objetivo válido para fusionar" else "")
                     },
                 color = bg,
                 shape = RoundedCornerShape(10.dp),
@@ -335,7 +406,7 @@ private fun SumbreakCellView(
                         text = tile.value.toString(),
                         fontSize = (cellSize.value * 0.42f).coerceIn(16f, 36f).sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E293B), // Dark slate for clear contrast on pastel chips
+                        color = Color(0xFF1E293B),
                     )
                 }
             }
@@ -352,6 +423,7 @@ private fun SumbreakCellView(
             Surface(
                 modifier = Modifier
                     .fillMaxSize()
+                    .graphicsLayer { this.alpha = alpha }
                     .scale(scale)
                     .clip(CircleShape)
                     .background(modBg)
@@ -362,15 +434,73 @@ private fun SumbreakCellView(
                             Modifier.border(2.dp, modTextColor.copy(alpha = 0.7f), CircleShape)
                         },
                     )
-                    .clickable(onClick = onClick)
                     .semantics {
+                        role = Role.Button
                         contentDescription = "Modificador $modSymbol" +
                             (if (isSelected) ", seleccionado" else "") +
-                            (if (isValidTarget) ", objetivo válido" else "")
+                            (if (isValidTarget) ", objetivo válido para aplicar" else "")
                     },
                 color = modBg,
                 shape = CircleShape,
                 tonalElevation = if (isSelected || isDragTarget) 6.dp else 2.dp,
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = modSymbol,
+                        fontSize = (cellSize.value * 0.38f).coerceIn(14f, 32f).sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = modTextColor,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Representación visual de la ficha mientras es arrastrada por el jugador. */
+@Composable
+private fun SumbreakFloatingTileView(
+    tile: SumbreakTile,
+    cellSize: Dp,
+) {
+    when (tile) {
+        is SumbreakTile.Empty -> Unit
+        is SumbreakTile.Number -> {
+            val bg = numberColor(tile.value)
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .shadow(12.dp, RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(2.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)),
+                color = bg,
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = tile.value.toString(),
+                        fontSize = (cellSize.value * 0.42f).coerceIn(16f, 36f).sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B),
+                    )
+                }
+            }
+        }
+        is SumbreakTile.Modifier -> {
+            val (modBg, modTextColor, modSymbol) = when (tile.op) {
+                ModifierOp.ADD -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "+${tile.value}")
+                ModifierOp.SUB -> Triple(Color(0xFFFFEBEE), Color(0xFFC62828), "-${tile.value}")
+                ModifierOp.MUL -> Triple(Color(0xFFEDE7F6), Color(0xFF512DA8), "×${tile.value}")
+                ModifierOp.WILDCARD -> Triple(Color(0xFFFFF8E1), Color(0xFFF57F17), "★")
+            }
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .shadow(12.dp, CircleShape)
+                    .clip(CircleShape)
+                    .border(2.5.dp, modTextColor, CircleShape),
+                color = modBg,
+                shape = CircleShape,
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     Text(
