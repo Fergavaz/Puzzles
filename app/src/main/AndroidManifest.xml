@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Sin permisos: la app funciona 100 % offline -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:name=".PuzzlesApp"
         android:allowBackup="true"

@@ -1,5 +1,7 @@
 package com.tuapp.puzzles.ui.home
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,14 +9,18 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,11 +37,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tuapp.puzzles.core.GameType
+import com.tuapp.puzzles.data.UpdateCheckResult
 import com.tuapp.puzzles.ui.difficultyLabel
 import com.tuapp.puzzles.ui.emoji
 import com.tuapp.puzzles.ui.formatTime
@@ -50,10 +58,32 @@ fun HomeScreen(
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val updateResult by vm.updateResult.collectAsStateWithLifecycle()
+    val isCheckingUpdate by vm.isCheckingUpdate.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
     var picking by remember { mutableStateOf<GameType?>(null) }
     var viewingInstructions by remember { mutableStateOf<GameType?>(null) }
 
-    Scaffold(topBar = { CenterAlignedTopAppBar(title = { Text("Puzzles") }) }) { pad ->
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Puzzles") },
+                actions = {
+                    IconButton(
+                        onClick = { vm.checkForUpdates(isUserInitiated = true) },
+                        enabled = !isCheckingUpdate,
+                    ) {
+                        if (isCheckingUpdate) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Default.SystemUpdate, contentDescription = "Comprobar actualizaciones")
+                        }
+                    }
+                },
+            )
+        },
+    ) { pad ->
         LazyColumn(
             modifier = Modifier.padding(pad),
             contentPadding = PaddingValues(16.dp),
@@ -71,6 +101,78 @@ fun HomeScreen(
                 )
             }
         }
+    }
+
+    // Diálogo de actualizaciones
+    when (val u = updateResult) {
+        is UpdateCheckResult.Available -> {
+            AlertDialog(
+                onDismissRequest = vm::dismissUpdateDialog,
+                title = { Text("¡Actualización disponible! 🎉") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Hay una nueva versión disponible: v${u.info.latestVersionName}")
+                        if (u.info.releaseNotes.isNotBlank()) {
+                            Text(
+                                text = u.info.releaseNotes,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            vm.dismissUpdateDialog()
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(u.info.downloadUrl))
+                            context.startActivity(intent)
+                        },
+                    ) {
+                        Text("Descargar e instalar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = vm::dismissUpdateDialog) { Text("Más tarde") }
+                },
+            )
+        }
+        is UpdateCheckResult.UpToDate -> {
+            AlertDialog(
+                onDismissRequest = vm::dismissUpdateDialog,
+                title = { Text("App actualizada ✅") },
+                text = { Text("Ya tienes instalada la última versión disponible (v${u.currentVersion}).") },
+                confirmButton = {
+                    Button(onClick = vm::dismissUpdateDialog) { Text("Aceptar") }
+                },
+            )
+        }
+        is UpdateCheckResult.CheckFailed -> {
+            AlertDialog(
+                onDismissRequest = vm::dismissUpdateDialog,
+                title = { Text("Comprobar versión ℹ️") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Puedes comprobar o descargar la última versión directamente desde los Releases de GitHub.")
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            vm.dismissUpdateDialog()
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(u.manualDownloadUrl))
+                            context.startActivity(intent)
+                        },
+                    ) {
+                        Text("Abrir Releases")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = vm::dismissUpdateDialog) { Text("Cerrar") }
+                },
+            )
+        }
+        null -> Unit
     }
 
     picking?.let { game ->

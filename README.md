@@ -8,9 +8,9 @@ Aplicación nativa para Android que reúne **6 rompecabezas de lógica** clásic
 
 Descarga el archivo APK listo para instalar en cualquier dispositivo Android (Android 8.0 / API 26 o superior):
 
-- 📦 **[Últimas versiones en GitHub Releases](https://github.com/Fergavaz/Puzzles/releases)** — APKs oficiales por versión, registro de cambios y notas de lanzamiento.
+- 📦 **[Últimas versiones en GitHub Releases](https://github.com/Fergavaz/Puzzles/releases)** — APKs oficiales (`puzzles.fergavaz.apk`), registro de cambios y notas de lanzamiento.
 - 🏷️ **[Tags y versiones del repositorio](https://github.com/Fergavaz/Puzzles/tags)**
-- ☁️ **[Descargar última versión desde Google Drive](https://drive.google.com/file/d/10zoqXYH6D19PeAXNA5D-r9fCfaiLyooq/view?usp=sharing)** (`puzzles.fergavaz.apk`)
+- 🔄 **Comprobación de actualizaciones integrada:** la propia aplicación avisa cuando hay una nueva versión disponible y permite descargarla directamente.
 
 ---
 
