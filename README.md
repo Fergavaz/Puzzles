@@ -10,7 +10,7 @@ Descarga el archivo APK listo para instalar en cualquier dispositivo Android (An
 
 - 📦 **[Últimas versiones en GitHub Releases](https://github.com/Fergavaz/Puzzles/releases)** — APKs oficiales por versión, registro de cambios y notas de lanzamiento.
 - 🏷️ **[Tags y versiones del repositorio](https://github.com/Fergavaz/Puzzles/tags)**
-- ☁️ **[Descargar última versión desde Google Drive](https://drive.google.com/file/d/10zoqXYH6D19PeAXNA5D-r9fCfaiLyooq/view?usp=sharing)** (`app-release.apk`)
+- ☁️ **[Descargar última versión desde Google Drive](https://drive.google.com/file/d/10zoqXYH6D19PeAXNA5D-r9fCfaiLyooq/view?usp=sharing)** (`puzzles.fergavaz.apk`)
 
 ---
 
@@ -126,4 +126,4 @@ Puzzles/
 
 Los APK generados se encuentran en:
 - Debug: `app/build/outputs/apk/debug/app-debug.apk`
-- Release: `app/build/outputs/apk/release/app-release.apk`
+- Release: `app/build/outputs/apk/release/puzzles.fergavaz.apk`
