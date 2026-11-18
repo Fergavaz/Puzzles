@@ -141,19 +141,35 @@ fun HomeScreen(
             AlertDialog(
                 onDismissRequest = vm::dismissUpdateDialog,
                 title = { Text("App actualizada ✅") },
-                text = { Text("Ya tienes instalada la última versión disponible (v${u.currentVersion}).") },
+                text = { Text("Tienes instalada la última versión disponible (v${u.currentVersion}).") },
                 confirmButton = {
                     Button(onClick = vm::dismissUpdateDialog) { Text("Aceptar") }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            vm.dismissUpdateDialog()
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(com.tuapp.puzzles.data.UpdateChecker.GITHUB_RELEASES_PAGE))
+                            context.startActivity(intent)
+                        },
+                    ) {
+                        Text("Ver en GitHub")
+                    }
                 },
             )
         }
         is UpdateCheckResult.CheckFailed -> {
             AlertDialog(
                 onDismissRequest = vm::dismissUpdateDialog,
-                title = { Text("Comprobar versión ℹ️") },
+                title = { Text("Comprobar actualizaciones ℹ️") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Puedes comprobar o descargar la última versión directamente desde los Releases de GitHub.")
+                        Text("No se pudo comprobar automáticamente si hay una nueva versión.")
+                        Text(
+                            text = "Puedes comprobarla o descargarla directamente desde la página de Releases de GitHub.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 },
                 confirmButton = {
